@@ -1,0 +1,22 @@
+tasks:
+- init: pip3 install -r requirements.txt
+  command: open in_cal.ipynb
+# ports:
+# - port: 8050
+#   onOpen: open-preview
+# - port: 8888
+#   onOpen: open-browser
+
+
+
+# jupyter notebook
+
+# Type in terminal: $ jupyter notebook
+
+# After jupyter notebook start-up, you can see a message like followings in terminal.
+
+# To access the notebook, open this file in a browser:
+#         file:///home/gitpod/.local/share/jupyter/runtime/nbserver-1516-open.html
+# Or copy and paste one of these URLs:
+#         http://(ws-12345678-1234-1234-1234-1234567890ab or 127.0.0.1):8888/?token=abcdef12345678901234567890123456
+
