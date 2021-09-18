@@ -1,13 +1,11 @@
 tasks:
 - init: pip3 install -r requirements.txt
   command: open in_cal.ipynb
-# ports:
-# - port: 8050
-#   onOpen: open-preview
-# - port: 8888
-#   onOpen: open-browser
-
-
+ports:
+- port: 8050
+  onOpen: open-preview
+- port: 8888
+  onOpen: open-browser
 
 # jupyter notebook
 
