@@ -19,7 +19,6 @@ dict_groups = OrderedDict(Control=[1, 4, 7, 10, 13],
 # assemble incal dataframe shape and properties - multiindex
 df = incal_create_df_incal_format(df, dict_groups)
 df_removed_outliers = remove_outliers_mixed_df(df)
-print(df_removed_outliers)
 
 # for layout
 features = df.columns.values.tolist()
@@ -36,6 +35,9 @@ marks_indexed_time_stamp = {
 
 # to menage dashboard
 storage_points_save = {}
+
+# levels_as_ids = data.index
+# levels_ids, levels_uniques = levels_as_ids.factorize()
 
 app.layout = html.Div([
     html.Div([
@@ -85,17 +87,20 @@ app.layout = html.Div([
 ])
 
 
+def remove_data_points(data):
+    # remove where keys feature is place
+    for feature in storage_points_save.keys():
+        for row_index in storage_points_save[feature]:
+            data.at[row_index, feature] = np.nan
+
+
 def get_dff(df, v_feature, is_removed_points=False, **kwargs):
     dff = df.copy()
-    levels_as_ids = dff.index
-    levels_ids, levels_uniques = levels_as_ids.factorize()
-    if is_removed_points:
-        for row_index in storage_points_save[v_feature]:
-            dff.at[row_index, v_feature] = np.nan
     return dff[v_feature]
 
 
 def click_data_points(click_data, feature, children):
+    print(click_data)
     point_info = click_data['points'][0]
     x_datetime = pd.Timestamp(point_info['x'])
     index_legand = point_info['curveNumber']
@@ -139,8 +144,9 @@ def click_data_points(click_data, feature, children):
 def create_scatter(dff):
     x_axis = dff.index.get_level_values(0)
     color = dff.index.get_level_values(1)
-    y_axis = dff.name
-    fig = px.scatter(dff, x=x_axis, y=y_axis, color=color)
+    y_axis = dff.values
+
+    fig = px.scatter(x=x_axis, y=y_axis, color=color)
     fig.update_traces(mode='lines+markers')
     fig.update_layout(legend_traceorder="normal")
     return fig
@@ -173,18 +179,23 @@ def create_scatter_graph(value_feature, checklist_outliers, tuple_start_end,
     if is_clickData_triggered or (state_feature in storage_points_save.keys()
                                   ):  # removing data points that been click
         children = click_data_points(click_data, state_feature, children)
-        # need to make a function when saving data we get all the dot that the user removed
         # sepert deleting and get_dff (dff for dom) to sepert function and return all data that was deleted
-        data = get_dff(data, state_feature, True)
+        remove_data_points(data)  # inplace
     # trim datetime from the sides
+
     start_time, end_time = get_start_and_end_time(tuple_start_end,
                                                   dict_time_stamps)
-    dff = trim_df_datetime(data, start_time, end_time)
-    dff = get_dff(dff, state_feature)
+    data = trim_df_datetime(data, start_time, end_time)
     # remove groups
     # remove subjects
 
-    return create_scatter(dff), children
+    dff = get_dff(data, state_feature)
+
+    children = children
+
+    created = create_scatter(dff)
+
+    return created, children
 
 
 if __name__ == '__main__':
