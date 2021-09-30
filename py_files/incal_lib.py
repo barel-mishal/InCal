@@ -342,7 +342,7 @@ def incal_remove_subjects(df, number_or_index_name, subjects_to_remove):
 def incal_remove_group(df, number_or_index_name, groups_to_remove):
     subjects = get_values_level(df, number_or_index_name)
     selected_group = get_difference_from_list_2(subjects, groups_to_remove)
-    return df.loc[:, :, selected_group]
+    return df.loc[:, :, (selected_group)]
 
 
 def select_columns_by_metebolic_parm(df, param_name, exclude=False):
@@ -639,3 +639,25 @@ def create_anovas_table(df):
         'ancova', df, ancova_and_anova_with_interaction_features, 'bodymass',
         'Group')
     return concat_dfs([anova_df, anova_with_interaction_df, ancova_df]).T
+
+
+dict_aggrageted_function_for_column = {
+    'Energy_Balance': 'mean',
+    'actual_allmeters': 'mean',
+    'actual_pedmeters': 'mean',
+    'bodymass': 'mean',
+    'kcal_hr': 'mean',
+    'locomotor_activity': 'mean',
+    'rq': 'mean',
+    'vco2': 'mean',
+    'vo2': 'mean',
+    'vh2o': 'mean',
+    'xbreak': 'mean',
+    'ybreak': 'mean',
+    'actual_foodupa': 'sum',
+    'actual_waterupa': 'sum',
+}
+add_feature_for_agg = {
+    **dict_aggrageted_function_for_column, 'actual_allmeters_cumsum': 'mean',
+    'actual_pedmeters_cumsum': 'mean'
+}
