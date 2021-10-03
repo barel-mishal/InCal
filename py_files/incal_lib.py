@@ -5,7 +5,6 @@ from pandas.api.types import CategoricalDtype
 from IPython.display import display, HTML
 from statsmodels.formula.api import ols
 from collections import OrderedDict, Counter
-from jupyter_dash import JupyterDash
 from dash import html
 from dash import dcc
 import itertools

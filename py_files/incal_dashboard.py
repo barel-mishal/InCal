@@ -275,10 +275,10 @@ def statstical_analysis(averages_df):
     State('feature_y_axis_dropdown',
           'value'),  # getting current feature name from dropdown
     State('father', 'children'))
-def create_scatter_graph(value_feature, remove_subjects, remove_group,
-                         checklist_outliers, tuple_start_end, dict_time_stamps,
-                         click_data, input_category, category_name,
-                         state_feature, children):
+def pool_dashboard_data(value_feature, remove_subjects, remove_group,
+                        checklist_outliers, tuple_start_end, dict_time_stamps,
+                        click_data, input_category, category_name,
+                        state_feature, children):
 
     info = dash.callback_context
     is_clickData_triggered = info.triggered[0][
