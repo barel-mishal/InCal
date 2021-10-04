@@ -15,4 +15,5 @@ levels_ids, levels_uniques = levels_as_ids.factorize()
 df.at[levels_uniques[0], 'Energy_Balance'] = np.nan
 point = '(1, "2021-07-30 05:00")'
 
-print(10 in list(dict_groups.items())[0][1])
+print(df)
+print(df.index.get_level_values('subjectsID'))
