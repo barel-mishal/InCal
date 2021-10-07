@@ -330,12 +330,13 @@ def get_difference_from_list_2(list1, list2):
 
 
 def incal_remove_subjects(df, number_or_index_name, subjects_to_remove):
-    subjects = get_values_level(df, number_or_index_name)
     strs_to_ints = lambda l: [int(x) for x in l]
-    subjects_to_remove_ints = strs_to_ints(subjects_to_remove)
-    selected_subjects = get_difference_from_list_2(subjects,
-                                                   subjects_to_remove_ints)
-    return df.loc[:, selected_subjects, :]
+    subjects = df.index.get_level_values(1).categories
+    set_categories = set(subjects)
+    type_subjects_to_remove = strs_to_ints(subjects_to_remove) if type(
+        subjects[0]) in [int, np.int64] else subjects_to_remove
+    left_subjects = set_categories - set(type_subjects_to_remove)
+    return df.loc[:, list(left_subjects), :]
 
 
 def incal_remove_group(df, number_or_index_name, groups_to_remove):

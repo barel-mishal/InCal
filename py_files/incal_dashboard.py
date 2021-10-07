@@ -1,7 +1,7 @@
 import dash
 from dash.dependencies import Input, Output, State
-import dash_core_components as dcc
-import dash_html_components as html
+import dash as dcc
+from dash import html
 import pandas as pd
 import plotly.express as px
 from incal_lib import *
@@ -51,15 +51,11 @@ multi_selection_groups = [{
     'value': str(group)
 } for group in groups]
 
-# to menage dashboard
-storage_points_save = {}
-
-# levels_as_ids = data.index
-# levels_ids, levels_uniques = levels_as_ids.factorize()
+# remove specific point
+rows_ids, rows_ind = df.index.factorize()
 
 app.layout = html.Div([
     html.Div([
-        html.Div(id='father', children=[]),
         html.Div([
             dcc.Dropdown(id='feature_y_axis_dropdown',
                          options=[{
@@ -70,6 +66,10 @@ app.layout = html.Div([
             dcc.Dropdown(id='show_as_group_or_individual',
                          options=obj_categories_columns_names,
                          value=categories_columns_names[0]),
+            dcc.Dropdown(id='remove_specific_value',
+                         options=[],
+                         multi=True,
+                         value=[]),
             dcc.Dropdown(id='remove_group',
                          options=multi_selection_groups,
                          multi=True),
@@ -94,6 +94,7 @@ app.layout = html.Div([
         ]),
     ]),
     html.Div([
+        html.Button('Save data in each graph', id='save_data', n_clicks=0),
         dcc.Graph(id='scatter_time_series', clickData={}),
         dcc.Graph(id='averages'),
         dcc.Graph(id='box', clickData={}),
@@ -105,11 +106,15 @@ app.layout = html.Div([
 ])
 
 
-def remove_data_points(data):
+def remove_data_point(data, row_index, feature):
     # remove where keys feature is place
-    for feature in storage_points_save.keys():
-        for row_index in storage_points_save[feature]:
-            data.at[row_index, feature] = np.nan
+    data.at[row_index, feature] = np.nan
+
+
+def for_loop_removeing_data_point(data, rows, feature):
+    for row in rows:
+        i_row = int(row.split(' ')[0])
+        remove_data_point(data, rows_ind[i_row], feature)
 
 
 def get_dff(df, v_feature, is_removed_points=False, **kwargs):
@@ -117,46 +122,33 @@ def get_dff(df, v_feature, is_removed_points=False, **kwargs):
     return dff[v_feature]
 
 
-def click_data_points(click_data, feature, children):
-    print(click_data)
+def click_data_points(df, click_data, feature):
     point_info = click_data['points'][0]
-    x_datetime = pd.Timestamp(point_info['x'])
-    index_legand = point_info['curveNumber']
+    # datetime
+    Timestamp = pd.Timestamp
+    x_datetime = Timestamp(point_info['x'])
+    # subject number
+    index_legand = point_info['curveNumber']  # witch cage
     subject_number = int(legand_color_order[index_legand])
+    # witch group
     group = [
         item[0] for item in list(dict_groups.items())
         if subject_number in item[1]
     ][0]
-    row_index = x_datetime, subject_number, group
-    point = str(row_index)
-    is_found_feature = feature in storage_points_save.keys()
-    # get data ids and value after delete point
-    # get data
-    if is_found_feature:
-        is_new_point = point not in storage_points_save.get(feature)
-        if is_new_point:
-            storage_points_save[feature].append(row_index)
-            for item in children:
-                if item['props']['id']['index'] == feature:
-                    item['props']['options'].append({
-                        'label': str(point),
-                        'value': str(point)
-                    })
-    else:
-        # the user add new feature that dosnt exist in the storage_points_save
-        storage_points_save[feature] = [row_index]
-        # when the user adds a feature it then creating a new pattern muching dropdown
-        new_dropdown = dcc.Dropdown(id={
-            'type': 'removabal_dropdown',
-            'index': feature
-        },
-                                    options=[{
-                                        'label': str(i),
-                                        'value': str(i)
-                                    } for i in storage_points_save[feature]],
-                                    multi=True)
-        children.append(new_dropdown)
-    return children
+    # index number
+    # tuple like ids_ind
+    date_time, subject, group = x_datetime, str(
+        subject_number
+    ), group  # example: (Timestamp('2021-07-28 16:00:00'), 6, 'Group_3')
+    # make tuple
+    row_ind = (date_time, int(subject), group
+               )  # if error - not found... - check int or str given on subject
+    # get a list for the .index func
+    rows_ind = df.index.to_list()
+    # use .index func to find the index of the row in the list of rows
+    index = rows_ind.index(row_ind)
+    # return tuple of index datetime subject and group
+    return index, date_time, subject, group
 
 
 def create_scatter(dff, colors):
@@ -251,7 +243,21 @@ def statstical_analysis(averages_df):
         columns={'index': 'Features'})
     columns = [{'id': p, 'name': p} for p in p_values_table.columns.to_list()]
     table = p_values_table.to_dict('records')
-    return columns, table
+    return columns, table, p_values_table
+
+
+@dash.callback(Output('remove_specific_value', 'options'),
+               Input('feature_y_axis_dropdown', 'value'))
+def dropdown_rows_ids_feature(feature_name):
+    datetime = 0
+    subject = 1
+    group = 2
+    return [{
+        'label':
+        f'{rows_ids[i]} {str(rows_ind[i][datetime])} {rows_ind[i][subject]} {rows_ind[i][group]}',
+        'value':
+        f'{rows_ids[i]} {str(rows_ind[i][datetime])} {rows_ind[i][subject]} {rows_ind[i][group]}'
+    } for i in range(len(rows_ind))]
 
 
 @dash.callback(
@@ -260,9 +266,9 @@ def statstical_analysis(averages_df):
     Output('box', 'figure'),
     Output('hist', 'figure'),
     Output('regression', 'figure'),
-    Output('father', 'children'),
     Output('stats_table_Pvalue', 'columns'),
     Output('stats_table_Pvalue', 'data'),
+    Output('remove_specific_value', 'value'),
     Input('feature_y_axis_dropdown', 'value'),
     Input('remove_subjects', 'value'),
     Input('remove_group', 'value'),
@@ -274,32 +280,41 @@ def statstical_analysis(averages_df):
     State('show_as_group_or_individual', 'value'),
     State('feature_y_axis_dropdown',
           'value'),  # getting current feature name from dropdown
-    State('father', 'children'))
+    State('remove_specific_value', 'value'),
+    Input('save_data', 'n_clicks'))
 def pool_dashboard_data(value_feature, remove_subjects, remove_group,
                         checklist_outliers, tuple_start_end, dict_time_stamps,
                         click_data, input_category, category_name,
-                        state_feature, children):
-
+                        state_feature, strs_remove_specific_values,
+                        n_clicks_save_data):
     info = dash.callback_context
     is_clickData_triggered = info.triggered[0][
         'prop_id'] == 'scatter_time_series.clickData'
+    is_feature_y_axis_triggered = info.triggered[0][
+        'prop_id'] == 'feature_y_axis_dropdown.value'
     # remove outliers
     data = df.copy() if not checklist_outliers else df_removed_outliers.copy()
     # remove specific points
-
-    if is_clickData_triggered or (state_feature in storage_points_save.keys()
-                                  ):  # removing data points that been click
-        children = click_data_points(click_data, state_feature, children)
-        remove_data_points(data)  # inplace
-
+    if is_feature_y_axis_triggered:
+        strs_remove_specific_values = []
+    if is_clickData_triggered:  # removing data points that been click
+        i, datetime, subject, group = click_data_points(
+            data, click_data,
+            state_feature)  # (Timestamp('2021-08-01 13:00:00'), 7, 'Control')
+        strs_remove_specific_values.append(f'{i} {datetime} {subject} {group}')
+    if strs_remove_specific_values:
+        for_loop_removeing_data_point(data, strs_remove_specific_values,
+                                      state_feature)  # inplace
+        strs_remove_specific_values = [
+            str(row) for row in strs_remove_specific_values
+        ]
+    dropdown_ids_rows = strs_remove_specific_values
     # trim datetime from the sides
     start_time, end_time = get_start_and_end_time(tuple_start_end,
                                                   dict_time_stamps)
     data = trim_df_datetime(data, start_time, end_time)
-
     # removing group or subjects depnding on the selection
     data = removing_group_or_subjects(data, remove_group, remove_subjects)
-
     # selecting and grouping data
     features_calc = add_feature_for_agg  # dict - key (column_name): value (calc for parmeter) - this dict is for aggregetion function for each feature
     # creating an averages df
@@ -312,17 +327,21 @@ def pool_dashboard_data(value_feature, remove_subjects, remove_group,
     # selecting for each "_df" (averages_df, time_series_df)
     time_series = get_dff(time_series_df, state_feature)
     averages = get_dff(averages_df, state_feature)
-
     colors = px.colors.qualitative.Vivid
     fig_scatter = create_scatter(time_series, colors)
     fig_bar = create_bar(averages, colors)
     fig_box = create_box(time_series, category_name, colors)
     fig_histogram = create_histogram(time_series, category_name, colors)
     fig_regression = create_regression(averages_df, colors, state_feature)
-
     # analysis section
-    columns, table = statstical_analysis(averages_df)
-    return fig_scatter, fig_bar, fig_box, fig_histogram, fig_regression, children, columns, table
+    columns, table, p_values_table = statstical_analysis(averages_df)
+    if n_clicks_save_data:
+        averages.to_csv('averages table.csv')
+        time_series.to_csv('time series table.csv')
+        averages_df.to_csv('averages table.csv')
+        time_series_df.to_csv('time series table.csv')
+        p_values_table.to_csv('p values table.csv')
+    return fig_scatter, fig_bar, fig_box, fig_histogram, fig_regression, columns, table, dropdown_ids_rows
 
 
 if __name__ == '__main__':
