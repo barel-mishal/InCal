@@ -57,26 +57,38 @@ rows_ids, rows_ind = df.index.factorize()
 app.layout = html.Div([
     html.Div([
         html.Div([
+            # Analysis Feature
+            html.P('Analysis Feature', id='title1'),
             dcc.Dropdown(id='feature_y_axis_dropdown',
                          options=[{
                              'label': i,
                              'value': i
                          } for i in features],
                          value=features[0]),
+            # Group or Individual
+            html.P('Group or Individual', id='title2'),
             dcc.Dropdown(id='show_as_group_or_individual',
                          options=obj_categories_columns_names,
                          value=categories_columns_names[0]),
+            # Remove specific dot in a graph
+            # (to remove click on the timeseries dot)
+            html.P('Remove specific dot in a graph', id='title3'),
             dcc.Dropdown(id='remove_specific_value',
                          options=[],
                          multi=True,
                          value=[]),
+            # Remove spesific Group
+            html.P('Remove specific Group', id='title4'),
             dcc.Dropdown(id='remove_group',
                          options=multi_selection_groups,
                          multi=True),
+            # Remove specific subject
+            html.P('Remove specific subject', id='title5'),
             dcc.Dropdown(id='remove_subjects',
                          options=multi_selection_subjects,
                          multi=True),
-            dcc.Checklist(id='checklist_outliears',
+            # Checkbox
+            dcc.Checklist(id='checklist_outliers',
                           options=[
                               {
                                   'label': 'Remove outliers',
@@ -85,6 +97,8 @@ app.layout = html.Div([
                           ],
                           value=[],
                           labelStyle={'display': 'inline-block'}),
+            # Range Date-Time slider
+            html.P('Date-time slider', id='title6'),
             dcc.RangeSlider(id="range_slider_trim_time_series",
                             marks=marks_indexed_time_stamp,
                             value=(0, end_point_index_analysis_format_indexed),
@@ -94,7 +108,7 @@ app.layout = html.Div([
         ]),
     ]),
     html.Div([
-        html.Button('Save data in each graph', id='save_data', n_clicks=0),
+        html.Button('Save data', id='save_data', n_clicks=0),
         dcc.Graph(id='scatter_time_series', clickData={}),
         dcc.Graph(id='averages'),
         dcc.Graph(id='box', clickData={}),
@@ -155,57 +169,79 @@ def create_scatter(dff, colors):
     x_axis = dff.index.get_level_values(0)
     color = dff.index.get_level_values(1)
     y_axis = dff.values
-
+    labels = {
+        'y': dff.name.replace('_', ' '),
+        'x': x_axis.names[0].replace('_', ' '),
+        'color': color.names[0].replace('ID', '')
+    }
     fig = px.scatter(x=x_axis,
                      y=y_axis,
                      color=color,
                      color_discrete_sequence=colors,
-                     template='simple_white')
+                     template='simple_white',
+                     labels=labels,
+                     title="Time series")
     fig.update_traces(mode='lines+markers')
     fig.update_layout(legend_traceorder="normal")
     return fig
 
 
-def create_bar(averages, colors):
-    groups = averages.index.get_level_values(1)
+def create_bar(averages, category_name, colors):
+    groups = averages.index.get_level_values(category_name)
     y_axis = averages.values
+    labels = {
+        'y': averages.name.replace('_', ' '),
+        'x': 'Subjects',
+        'color': groups.name
+    }
     return px.bar(x=groups,
                   y=y_axis,
                   color=groups,
                   color_discrete_sequence=colors,
-                  template='simple_white')
+                  template='simple_white',
+                  labels=labels)
 
 
 def create_histogram(time_series, category_name, colors):
     x_axis = time_series.values
-    color_group = time_series.index.get_level_values(category_name).values
+    color_group = time_series.index.get_level_values(category_name)
+    labels = {
+        'y': time_series.name.replace('_', ' '),
+        'x': color_group.name,
+        'color': color_group.name
+    }
     return px.histogram(x=x_axis,
-                        color=color_group,
+                        color=color_group.values,
                         color_discrete_sequence=colors,
-                        template='simple_white')
+                        template='simple_white',
+                        labels=labels)
 
 
 def create_regression(averages_df, colors, feature_name):
     group_color = averages_df.index.get_level_values(1)
-    x_axis = averages_df['bodymass'].values
+    x_axis = averages_df['bodymass']
     feature_name = feature_name if feature_name != 'bodymass' else 'rq'
-    y_axis = averages_df[feature_name].values
-    return px.scatter(x=x_axis,
-                      y=y_axis,
+    y_axis = averages_df[feature_name]
+    labels = {'x': x_axis.name, 'y': y_axis.name, 'color': group_color.name}
+    return px.scatter(x=x_axis.values,
+                      y=y_axis.values,
                       color=group_color,
                       color_discrete_sequence=colors,
                       template='simple_white',
-                      trendline='ols')
+                      trendline='ols',
+                      labels=labels)
 
 
 def create_box(time_series, category_name, colors):
-    x_axis = time_series.index.get_level_values(category_name).values
-    y_axis = time_series.values
-    return px.box(x=x_axis,
-                  y=y_axis,
-                  color=x_axis,
+    x_axis = time_series.index.get_level_values(category_name)
+    y_axis = time_series
+    labels = {'x': x_axis.name, 'y': y_axis.name, 'color': x_axis.name}
+    return px.box(x=x_axis.values,
+                  y=y_axis.values,
+                  color=x_axis.values,
                   color_discrete_sequence=colors,
-                  template='simple_white')
+                  template='simple_white',
+                  labels=labels)
 
 
 def removing_group_or_subjects(data, remove_group, remove_subjects):
@@ -221,6 +257,13 @@ def create_average_df(data, features_calc):
     subjects_ids = data.index.get_level_values('subjectsID')
     groups_ids = data.index.get_level_values('Group')
     return data.groupby([subjects_ids, groups_ids]).agg(features_calc).dropna(
+    )  # dropna to get rid from the 0 and nan where groupby calc on subject that dosn't belong to group
+
+
+def create_average_df_by_category_name(data, category_name, features_calc):
+    # averages df
+    ids = data.index.get_level_values(category_name)
+    return data.groupby([ids]).agg(features_calc).dropna(
     )  # dropna to get rid from the 0 and nan where groupby calc on subject that dosn't belong to group
 
 
@@ -272,7 +315,7 @@ def dropdown_rows_ids_feature(feature_name):
     Input('feature_y_axis_dropdown', 'value'),
     Input('remove_subjects', 'value'),
     Input('remove_group', 'value'),
-    Input('checklist_outliears', 'value'),
+    Input('checklist_outliers', 'value'),
     Input('range_slider_trim_time_series', 'value'),
     Input('range_slider_trim_time_series', 'marks'),
     Input('scatter_time_series', 'clickData'),
@@ -319,17 +362,20 @@ def pool_dashboard_data(value_feature, remove_subjects, remove_group,
     features_calc = add_feature_for_agg  # dict - key (column_name): value (calc for parmeter) - this dict is for aggregetion function for each feature
     # creating an averages df
     averages_df = create_average_df(data, features_calc)
+    averages_df_by_category = create_average_df_by_category_name(
+        data, category_name, features_calc)
     averages_df['Energy_Balance'] = averages_df[
-        'actual_foodupa'].values - averages_df['kcal_hr'].values
+        'kcal_hr'].values - averages_df['actual_foodupa'].values
     # timeseries - groupby subject or groups
     time_series_df = groupby_category(data, category_name, features_calc)
     # selecting column by "state_feature" (feature state is all the parmeters of the data i.e: Energy_Balance)
     # selecting for each "_df" (averages_df, time_series_df)
     time_series = get_dff(time_series_df, state_feature)
     averages = get_dff(averages_df, state_feature)
+    averages_by_category = get_dff(averages_df_by_category, state_feature)
     colors = px.colors.qualitative.Vivid
     fig_scatter = create_scatter(time_series, colors)
-    fig_bar = create_bar(averages, colors)
+    fig_bar = create_bar(averages_by_category, category_name, colors)
     fig_box = create_box(time_series, category_name, colors)
     fig_histogram = create_histogram(time_series, category_name, colors)
     fig_regression = create_regression(averages_df, colors, state_feature)

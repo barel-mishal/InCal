@@ -197,6 +197,7 @@ def remove_outliers_mixed_df(df):
 # 17.1 ms ± 175 µs per loop (mean ± std. dev. of 5 runs, 100 loops each)
 
 
+# group column and set multiindex format for analysis
 def incal_set_multindex(df, list_of_multi_index, drop_current_index=False):
     ids_indexed_df = df.reset_index(drop=drop_current_index)
     return ids_indexed_df.set_index(list_of_multi_index)
@@ -264,34 +265,6 @@ def incal_create_levels(df, dict_groups):
                                      idx.levels[2], date_time_type,
                                      order_subjects, order_groups)
     return df.index.set_levels([l0, l1, l2])
-
-
-# group column and set multiindex format for analysis
-def create_category_column(df, categories, ordered=True):
-    '''
-    order_categoreis_columns make sure the group and subjects in the right order. This is for,
-    the statiscal analysis. The groups and the subjects needs to be in order of the expriment design.
-    In order the anova, ancova and anova with interaction to work properly
-    
-    '''
-    return pd.Categorical(df, categories=categories, ordered=True)
-
-
-def replace_ids_to_group_id(ndarray_ids, groups_names, subjects_within_group):
-    conditiones = [ndarray_ids == str(n) for n in subjects_within_group]
-    choices = groups_names
-    return np.select(conditiones, choices, ndarray_ids)
-
-
-def incal_create_group_column_from_ids(df, ids_column_name, dict_groups):
-    n_ids_multiple_name = lambda name, n: [name] * len(n)
-    subjects_vlaues = df[ids_column_name].values
-    items = dict_groups.items()
-    groups_names = flat_list(
-        [n_ids_multiple_name(group, ids) for group, ids in items])
-    subjects_within_groups = flat_list([ids for ids in dict_groups.values()])
-    return replace_ids_to_group_id(subjects_vlaues, groups_names,
-                                   subjects_within_groups)
 
 
 def incal_assemble_multi_index_format(df, ids_column_name, dict_groups,
